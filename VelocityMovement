@@ -94,18 +94,19 @@ public class Velocity : MonoBehaviour
 
         if((isWallRunning == true && onWall == false) || (!Input.GetButton("Vertical") && !Input.GetButton("Horizontal") && !Input.GetButton("Jump")))
         {
+            
             isWallRunning = false;
             rb.useGravity = true;
         }
 
         //Checks whether the object is grounded and if no inputs are given, basically not moving 
-        if ((!Input.GetButton("Vertical") && !Input.GetButton("Horizontal") && !Input.GetButton("Jump")))
+        if ((IsGrounded == true && !Input.GetButton("Vertical") && !Input.GetButton("Horizontal") && !Input.GetButton("Jump")))
         {
             rb.useGravity = true;
             //if player does not move change the vector to 0     
             rb.velocity = Vector3.zero + yFallVect;
             isRunning = false;
-
+            Debug.Log("stopping");
         }
 
         //Running input
@@ -117,7 +118,7 @@ public class Velocity : MonoBehaviour
             if (onWall == true && IsGrounded == false)
             {
 
-
+                Debug.Log("WallRunning");
                 rb.velocity = movedirection * wallRunningSpeed;
                 rb.useGravity = false;
                 isWallRunning = true;
@@ -126,6 +127,7 @@ public class Velocity : MonoBehaviour
             //running
             else if (IsGrounded == true)
             {
+                Debug.Log("Running");
                 rb.useGravity = true;
                 //the velocity of the players direction and resetting y to the players y previous value so it doesnt glitch
                 rb.velocity = movedirection * runningSpeed + yFallVect;
@@ -142,7 +144,7 @@ public class Velocity : MonoBehaviour
         {
 
 
-
+            Debug.Log("Walking");
             //Adds force relative to the rotation of object
             rb.velocity = movedirection * walkingSpeed + yFallVect;
             rb.useGravity = true;
@@ -162,7 +164,7 @@ public class Velocity : MonoBehaviour
         if (IsGrounded == true && Input.GetButtonDown("Jump"))
         {
 
-            
+            Debug.Log("GroundJumping");
             //force of the jump
             //rb.AddForce(0f, jumpForce, 0f, ForceMode.Acceleration);
             rb.velocity = new Vector3(0f, jumpForce, 0f);
@@ -174,7 +176,7 @@ public class Velocity : MonoBehaviour
         //if no more grounded and still has an airjump the player can jump again
         else if (!IsGrounded && airJump == true && Input.GetButtonDown("Jump"))
         {
-
+            Debug.Log("Air Jump");
             //force of the jump
             if (rb.velocity.y < 0f)
             {
@@ -199,18 +201,20 @@ public class Velocity : MonoBehaviour
         
 
         //if the player is run jumping then we do this
-        if (IsGrounded == false && isRunning == true)
+        if (IsGrounded == false && isRunning == true && Input.GetButton("Horizontal") && Input.GetButton("Vertical"))
         {
             Vector3 yFallVect = new Vector3(0, rb.velocity.y, 0);
             //the velocity of the players direction and resetting y to the players y previous value so it doesnt glitch
             rb.velocity = movedirection * runningSpeed + yFallVect;
+            Debug.Log("AirRunning");
         }
 
         //if player is only walk jumping then do this
-        else if (IsGrounded == false && isRunning == false)
+        else if (IsGrounded == false && isRunning == false && Input.GetButton("Horizontal") && Input.GetButton("Vertical"))
         {
             Vector3 yFallVect = new Vector3(0, rb.velocity.y, 0);
             rb.velocity = movedirection * walkingSpeed + yFallVect;
+            Debug.Log("AirWalking");
         }
 
     }
