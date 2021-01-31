@@ -92,7 +92,7 @@ public class Velocity : MonoBehaviour
         Vector3 yFallVect = new Vector3(0, rb.velocity.y, 0);
 
 
-        if(isWallRunning == true && onWall == false)
+        if((isWallRunning == true && onWall == false) || (!Input.GetButton("Vertical") && !Input.GetButton("Horizontal") && !Input.GetButton("Jump")))
         {
             isWallRunning = false;
             rb.useGravity = true;
