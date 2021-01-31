@@ -1,0 +1,130 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class PlayerMovement : MonoBehaviour
+{
+    //this is for the SphereCast it will create a sphere under the player to check if it touches anything 
+    public LayerMask groundedLayerMask;
+    //Checks if the player is on the ground or not
+    public bool IsGrounded;
+    public float walkingSpeed = 10f;
+    public float runningSpeed = 15f;
+    private float moveNS;
+    private float moveEW;
+
+    //takes the rigid component of an object
+    public Rigidbody rb;
+    public float jumpForce = 250f;
+
+    public int airJump;
+
+  
+    
+
+
+    // Start is called before the first frame update
+    void Start()
+    {
+
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+        //the input value of the x and z axises
+        moveNS = Input.GetAxisRaw("Horizontal");
+        moveEW = Input.GetAxisRaw("Vertical");
+
+        if(IsGrounded)
+        {
+            airJump = 1;
+        }
+
+    }
+
+    //Called every physics update
+    private void FixedUpdate()
+    {
+        //checks whether the gameobject is grounded or not
+        IsGrounded = Grounded();
+        //activates movement
+        Movement();
+    }
+
+    public void Movement()
+    {
+
+        //changes the vectors from -1 -- 1 with .normalized
+        Vector3 movement = new Vector3(moveNS, 0f, moveEW).normalized;
+
+        jump();
+
+
+        //Checks whether the object is grounded and if no inputs are given
+        if ((IsGrounded && !Input.GetButton("Vertical") && !Input.GetButton("Horizontal") && !Input.GetButton("Jump")) || (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.S) || (Input.GetKey(KeyCode.A) && Input.GetKey(KeyCode.D))))
+        {
+
+            rb.velocity = Vector3.zero;
+        }
+
+        //Checks whether the object is grounded and if any inputs are given
+        else if ((Input.GetButton("Vertical") || Input.GetButton("Horizontal")) && Input.GetKey(KeyCode.LeftShift))
+        {
+            //Removes any stopping forces of the object
+            
+            //Adds force relative to the rotation of object
+            rb.AddRelativeForce(movement * runningSpeed);
+
+
+        }
+    
+        else if ((Input.GetButton("Vertical") || Input.GetButton("Horizontal")) && !Input.GetKey(KeyCode.LeftShift))
+        {
+            //Removes any stopping forces of the object
+           
+            //Adds force relative to the rotation of object
+            rb.AddRelativeForce(movement * walkingSpeed);
+
+
+        }
+
+       
+
+    }
+
+    private void jump()
+    {
+        if(IsGrounded == true && Input.GetButtonDown("Jump"))
+        {
+            
+            rb.AddForce(0f, jumpForce, 0f);
+
+        }
+
+        
+        else if (IsGrounded == false &&  airJump == 1 && Input.GetButtonDown("Jump"))
+        {
+            
+            rb.AddForce(0f, jumpForce, 0f);
+            airJump = 0;
+        }
+    }
+
+
+    private bool Grounded()
+    {
+        //Stores the value of what the raycast has hit
+        RaycastHit hit;
+
+        //if the return value is true then it returns true
+        //basically creates a sphrere to check beneath it
+        //transorm position takes in the position of set object
+        //GetComponentInChildren takes the component we ask for of any children
+        //0.55f and 0.49f are: one of them moves where the spheres is and the other sets the radius of the sphere outside of the hitbox which stops character from being grounded 1m high
+        //then vector3.down checks downwards
+        //and groundlayermask is the layer which is the floor
+        return Physics.SphereCast(transform.position + GetComponentInChildren<CapsuleCollider>().center, 0.55f, Vector3.down, out hit, 0.49f, groundedLayerMask);
+    }
+
+}
