@@ -6,6 +6,8 @@ using UnityEngine;
 //When going down and jumping it gives you greater height
 public class Velocity : MonoBehaviour
 {
+    public CameraMovement cameraController;
+
     //this is for the SphereCast it will create a sphere under the player to check if it touches anything 
     public LayerMask groundLayerMask;
 
@@ -16,7 +18,10 @@ public class Velocity : MonoBehaviour
     public bool isGrounded;
     public bool isOnWall;
     public bool isRunning;
-    public bool isWallRunning;
+    public bool isWallRunningLeft;
+    public bool isWallRunningRight;
+    public bool tiltedLeft;
+    public bool tiltedRight;
     //the speed and movement direction of the player
     public float walkingSpeed = 5;
     public float runningSpeed = 10;
@@ -24,6 +29,7 @@ public class Velocity : MonoBehaviour
     public float wallJumpPower;
     private float moveNS;
     private float moveEW;
+    public float wallGravityForce;
     //takes the rigid component of an object
     private Rigidbody rb;
 
@@ -39,31 +45,35 @@ public class Velocity : MonoBehaviour
     Vector3 movedirection;
     Vector3 wallJumpRight;
     Vector3 wallJumpLeft;
+    Vector3 wallGravityPush;
+    Vector3 yFallVect;
     //happens before the first frame
     private void Awake()
     {
         //we take in the rigidbody compnent of the player
         rb = GetComponent<Rigidbody>();
+        cameraController = GetComponentInChildren<CameraMovement>();
     }
 
     // Start is called before the first frame update
     void Start()
     {
-        
+
     }
 
     // Update is called once per frame
     void Update()
     {
+        
         //the input value of the x and z axises
         moveNS = Input.GetAxisRaw("Horizontal");
         moveEW = Input.GetAxisRaw("Vertical");
         //we now make a vector of where the player can move to and normalize it, which means it can go from 0 to 1
         movedirection = (moveNS * transform.right + moveEW * transform.forward).normalized;
-
         
 
-        if (isGrounded || isWallRunning)
+
+        if (isGrounded || isWallRunningLeft || isWallRunningRight)
         {
             airJump = true;
 
@@ -78,19 +88,22 @@ public class Velocity : MonoBehaviour
         wallJumpRight = transform.right.normalized;
         wallJumpLeft = -transform.right.normalized;
 
-        
-        //is jumping
         jump();
-        
+
+
     }
+
     //Called every physics update
     private void FixedUpdate()
     {
+        yFallVect = new Vector3(0, rb.velocity.y, 0);
         //checks whether the gameobject is grounded or not
         isGrounded = Grounded();
         isOnWall = againstWall();
-        //activates movement
+
+        
         Movement();
+        wallRun();
 
     }
 
@@ -99,80 +112,29 @@ public class Velocity : MonoBehaviour
     {
         //We save the previous y velocity of the player, we need this so the players y velocity doesn't always reset to 0 and stops physics acting weird
         //to change how fast the player falls we need to go to edit  -> Project Settings -> Gravity and change the "- value"
-        Vector3 yFallVect = new Vector3(0, rb.velocity.y, 0);
-        Vector3 xzVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
-
-
-        if ((isWallRunning == true && isOnWall == false) || (!Input.GetButton("Vertical") && !Input.GetButton("Horizontal") && !Input.GetButton("Jump")))
+        //Vector3 yFallVect = new Vector3(0, rb.velocity.y, 0);
+        
+        
+        //Checks whether the object is grounded and if no inputs are given, basically not moving 
+        if ((isGrounded == true && !Input.GetButton("Vertical") && !Input.GetButton("Horizontal") && !Input.GetButtonDown("Jump")))
         {
             
-            isWallRunning = false;
-            rb.useGravity = true;
-        }
-
-        //Checks whether the object is grounded and if no inputs are given, basically not moving 
-        if ((isGrounded == true && !Input.GetButton("Vertical") && !Input.GetButton("Horizontal") && !Input.GetButton("Jump")))
-        {
-            rb.useGravity = true;
             //if player does not move change the vector to 0     
-            rb.velocity = Vector3.zero + yFallVect;
+            rb.velocity = yFallVect;
             isRunning = false;
-           
+
+
         }
 
         //Running input
-        else if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.LeftShift) && !Input.GetButtonDown("Jump"))
+        else if (Input.GetKey(KeyCode.W) && Input.GetKey(KeyCode.LeftShift) && !Input.GetButtonDown("Jump") && isGrounded == true)
         {
 
-
-            //wall Run
-            if (isOnWall == true && isGrounded == false)
-            {
-
-
-                if(isWallRunning == true && Input.GetButton("Jump"))
-                {
-                    RaycastHit hit;
-
-                    if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.left), out hit, 0.6f, wallLayerMask))
-                    {
-                        rb.velocity = wallJumpRight * wallJumpPower + xzVel +  yFallVect + new Vector3(0f, jumpForce, 0f);
-                        Debug.Log("WallJump to the right");
-                    }
-
-                    if (Physics.Raycast(transform.position, transform.TransformDirection(Vector3.right), out hit, 0.6f, wallLayerMask))
-                    {
-                        rb.velocity = wallJumpLeft * wallJumpPower + xzVel + yFallVect + new Vector3(0f, jumpForce, 0f);
-                        Debug.Log("Wall jump to the left");
-                    }
-
-                    isWallRunning = false;
-                    rb.useGravity = true;
-                }
-
-                else
-                {
-                    Debug.Log("WallRunning");
-                    rb.velocity = movedirection * wallRunningSpeed;
-                    rb.useGravity = false;
-                    isWallRunning = true;
-                }
-                
-               
-                
-            }
-
-            //running
-            else if (isGrounded == true)
-            {
-                
-                rb.useGravity = true;
-                //the velocity of the players direction and resetting y to the players y previous value so it doesnt glitch
-                rb.velocity = movedirection * runningSpeed + yFallVect;
-                isRunning = true;
-
-            }
-
+           
+            //the velocity of the players direction and resetting y to the players y previous value so it doesnt glitch
+            rb.velocity = movedirection * runningSpeed + yFallVect;
+            isRunning = true;
+            
 
         }
 
@@ -184,70 +146,152 @@ public class Velocity : MonoBehaviour
             
             //Adds force relative to the rotation of object
             rb.velocity = movedirection * walkingSpeed + yFallVect;
-            rb.useGravity = true;
             //player is not running anymore
             isRunning = false;
 
         }
-
-
+     
+      
 
     }
 
-    
+
 
     private void jump()
     {
 
-        Vector3 yFallVect = new Vector3(0, rb.velocity.y, 0);
+        
         Vector3 moveForce = new Vector3(moveNS, 0f, moveEW).normalized;
+        Vector3 currentXZVel = new Vector3(rb.velocity.x, 0f, rb.velocity.z);
         //checks if player is grounded if so it can do part one of the jump
-        if (isGrounded == true && Input.GetButtonDown("Jump"))
+        if ((isGrounded == true || isWallRunningLeft == true || isWallRunningRight == true) && Input.GetButtonDown("Jump"))
         {
-            
-           
-           
-            //force of the jump
-            //rb.AddForce(0f, jumpForce, 0f, ForceMode.Acceleration);
-            rb.velocity =  new Vector3(0f, jumpForce, 0f);
-           
 
-  
+            if (isWallRunningLeft == true)
+            {
+             
+                rb.velocity = wallJumpRight * wallJumpPower + new Vector3(0f, airjumpForce, 0f) + currentXZVel;
+            }
+
+            else if (isWallRunningRight == true)
+            {
+                rb.velocity = wallJumpLeft * wallJumpPower + new Vector3(0f, airjumpForce, 0f) + currentXZVel;
+            }
+
+            //force of the jump
+            else if (isGrounded == true)
+            {
+
+
+                if (isRunning == true)
+                {
+                    rb.velocity = movedirection * runningSpeed + new Vector3(0f, jumpForce, 0f);
+                }
+
+                else
+                {
+                    rb.velocity = movedirection * walkingSpeed + new Vector3(0f, jumpForce, 0f);
+                }
+
+            }
         }
 
         //if no more grounded and still has an airjump the player can jump again
-        else if ( !isWallRunning && !isGrounded && airJump == true && Input.GetButtonDown("Jump"))
+        else if (!isWallRunningRight && !isWallRunningLeft && !isGrounded && airJump == true && Input.GetButtonDown("Jump"))
         {
-            Debug.Log("Air Jump");
-            //force of the jump
-            if (rb.velocity.y < 0f)
-            {
 
-                //can use both force or velocity but velocity goes against gravity {Kind of resets its downward force}
-                rb.velocity = rb.velocity = movedirection * runningSpeed + new Vector3(0f, airjumpForce, 0f);
-                
-                airJump = false;
+            if (isRunning == true)
+            {
+                rb.velocity = movedirection * runningSpeed * 1.02f + new Vector3(0f, airjumpForce, 0f);
             }
+
+
             else
             {
+                rb.velocity = movedirection * walkingSpeed * 1.02f + new Vector3(0f, airjumpForce, 0f);
 
-                rb.velocity = rb.velocity = movedirection * runningSpeed + new Vector3(0f, airjumpForce, 0f);
-                
-                airJump = false;
             }
 
-           
+            airJump = false;
 
-        }
-
-
-        if (isGrounded == false &&  (Input.GetButton("Horizontal") || Input.GetButton("Vertical")) && !isWallRunning)
-        {
-            rb.AddRelativeForce(moveForce * runningSpeed);
         }
     }
 
+    private void wallRun()
+    {
 
+
+        RaycastHit hit;
+        if (((isWallRunningLeft == true || isWallRunningRight == true) && isOnWall == false) || Input.GetKey(KeyCode.S) || (!Input.GetKey(KeyCode.W) && !Input.GetButton("Horizontal")) || ((Physics.Raycast(transform.position, -transform.right, out hit, 0.7f, wallLayerMask) && Input.GetKey(KeyCode.D) || Physics.Raycast(transform.position, transform.right, out hit, 0.7f, wallLayerMask) && Input.GetKey(KeyCode.A))))
+        {
+            
+            rb.useGravity = true;
+            isWallRunningLeft = false;
+            isWallRunningRight = false;
+
+            if(tiltedLeft == true || tiltedRight == true)
+            {
+                cameraController.resetCameraAfterWallRun();
+                tiltedLeft = false;
+                tiltedRight = false;
+            }
+            
+        }
+
+        else if (isOnWall == true && isGrounded == false && !Input.GetButton("Jump"))
+        {
+
+            rb.useGravity = false;
+
+            if (Physics.Raycast(transform.position, -transform.right, out hit, 0.7f, wallLayerMask))
+            {
+                if((Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.A)))
+                {
+
+                    
+                    
+                    wallGravityPush = -hit.normal * wallGravityForce;
+
+                    if(tiltedRight == false)
+                    {
+                        tiltedLeft = false;
+                        cameraController.leftWallRunCamera();
+                        tiltedRight = true;
+                    }
+                    
+
+                    isWallRunningLeft = true;
+                }   
+               
+
+            }
+
+            if (Physics.Raycast(transform.position, transform.right, out hit, 0.7f, wallLayerMask))
+            {
+                if ((Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.D)))
+                {
+
+                    wallGravityPush = -hit.normal * wallGravityForce;
+
+                    if (tiltedLeft == false)
+                    {
+                        tiltedRight = false;
+                        cameraController.righttWallRunCamera();
+                        tiltedLeft = true;
+                    }
+                    
+
+
+                    isWallRunningRight = true;
+                }
+
+               
+            }
+            rb.velocity = movedirection * wallRunningSpeed + wallGravityPush;
+        }
+
+
+    }
 
     private bool Grounded()
     {
@@ -268,7 +312,7 @@ public class Velocity : MonoBehaviour
     {
         RaycastHit hit;
         //Different from spheres as we don need the radius anymore we only need the max distance, I used or because we need to check multiple sides to wallrun
-        return Physics.Raycast(transform.position, transform.TransformDirection(Vector3.left), out hit, 0.6f, wallLayerMask) || Physics.Raycast(transform.position, transform.TransformDirection(Vector3.right), out hit, 0.6f, wallLayerMask);
+        return Physics.Raycast(transform.position, -transform.right, out hit, 0.7f, wallLayerMask) || Physics.Raycast(transform.position, transform.right, out hit, 0.7f, wallLayerMask);
     }
 
 }
